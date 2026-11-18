@@ -1,0 +1,6 @@
+{
+  "name": "SIP Dial",
+  "description": "Modern open-source Android SIP VoIP & Telecom dialer with dynamic Material 3 theming, multi-account management, encrypted backups, and native dialer integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

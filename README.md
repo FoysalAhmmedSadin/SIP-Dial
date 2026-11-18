@@ -1,11 +1,37 @@
-<div align="center">
+# SIP Dial
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+**SIP Dial** is an open-source, Material Design 3 Android SIP softphone & hybrid SIM/VoIP dialer built with Kotlin, Jetpack Compose, and the Linphone SDK (`5.3.105`).
 
-  <h1>Built with AI Studio</h2>
+## Features
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Multi-Account SIP Engine**: Register and manage multiple SIP accounts (`UDP`, `TCP`, `TLS`, optional outbound proxy, custom Auth ID, configurable registration expiry), with instant top-bar account switching.
+- **Google Phone-Inspired 4-Tab Workspace**:
+  - **Favorites**: Speed-dial cards with per-contact preferred call route (`Ask`, `SIP`, `SIM`).
+  - **Recents**: Grouped call log syncing SIP and device SIM calls (`All`, `SIP`, `SIM` + `All`, `Outgoing`, `Received`, `Missed` filters), with long-press multi-select delete and call details timeline.
+  - **Contacts**: Device contacts plus Client & Office CRM tabs with one-tap WhatsApp / Telegram messenger detection and launch.
+  - **Keypad**: T9 predictive contact matching, paste/copy handling, one-tap star favorite, DTMF audible feedback, USSD & device dial code support, and instant SIP/SIM line routing.
+- **Dynamic Appearance Engine**:
+  - 4 theme modes: **System**, **Light**, **Dark**, and true **AMOLED (`#000000`)**.
+  - 8 accent colors: Green, Blue, Indigo, Purple, Coral Red, Orange, Teal, Pink.
+  - Adjustable app font scale (`Normal`, `Large`, `Extra Large`), persisted via Jetpack DataStore with zero startup flash.
+- **Full In-Call & Telecom Experience**:
+  - Dedicated active SIP call screen and SIM `InCallService` dialer with mute, speakerphone, Bluetooth/earpiece audio route picker, hold, DTMF dialpad, WAV call recording, and real-time jitter/MOS/codec telemetry.
+  - Floating incoming/ongoing call overlay, Android Call Redirection service (`Always SIP`, `Ask`, `SIM Only`), and SIM Call Forwarding configurator.
+- **Security, Recording & Encrypted Backups**:
+  - SIP passwords encrypted at rest with Android Keystore AES-256-GCM.
+  - Optional TLS certificate verification & SRTP media encryption.
+  - Built-in call recording manager with waveform-style seek bar and `FileProvider` sharing.
+  - Portable `.sipbak` local and Google Drive cloud backups (Call History, SIP Accounts, Contacts & Favorites, and App Settings/BlockList) encrypted with PBKDF2-HMAC-SHA256 (150,000 iterations) + AES-256-GCM and optional BiometricPrompt vault storage.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Building
 
-</div>
+```bash
+gradle assembleDebug
+gradle :app:testDebugUnitTest
+```
+
+## Developer & License
+
+- **Developer**: Foysal Ahmmed Sadin (<foysal24x7@gmail.com>)
+- **License**: GNU General Public License v3.0 (`LICENSE`)
+- **Attribution**: Powered by the Linphone Android SDK by Belledonne Communications.
