@@ -840,7 +840,7 @@ fun GoogleDriveBackupCard(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            BackupCategoryChips(
+            DriveBackupCategoryChips(
                 options = options,
                 onOptionsChange = { updated ->
                     options = updated
@@ -1005,7 +1005,7 @@ fun GoogleDriveBackupCard(modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun BackupCategoryChips(
+internal fun DriveBackupCategoryChips(
     options: BackupManager.BackupOptions,
     onOptionsChange: (BackupManager.BackupOptions) -> Unit
 ) {
