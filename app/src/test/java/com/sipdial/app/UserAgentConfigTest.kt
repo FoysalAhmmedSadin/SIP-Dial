@@ -14,10 +14,10 @@ import java.lang.reflect.Proxy
 class UserAgentConfigTest {
 
     @Test
-    fun sipUserAgentConstantsMatchAppVersion200() {
-        assertEquals("2.0.0", BuildConfig.VERSION_NAME)
+    fun sipUserAgentConstantsMatchAppVersion300() {
+        assertEquals("3.0.0", BuildConfig.VERSION_NAME)
         assertEquals("SIP Dial", SipDialApplication.SIP_USER_AGENT_NAME)
-        assertEquals("2.0.0", SipDialApplication.SIP_USER_AGENT_VERSION)
+        assertEquals("3.0.0", SipDialApplication.SIP_USER_AGENT_VERSION)
     }
 
     @Test
@@ -56,9 +56,9 @@ class UserAgentConfigTest {
 
         val setCalls = calls.filter { it.first == "setUserAgent" }
         assertEquals(2, setCalls.size)
-        assertEquals(listOf("SIP Dial", "2.0.0"), setCalls[0].second)
-        assertEquals(listOf("SIP Dial", "2.0.0"), setCalls[1].second)
-        assertEquals("SIP Dial/2.0.0", fakeCore.userAgent)
+        assertEquals(listOf("SIP Dial", "3.0.0"), setCalls[0].second)
+        assertEquals(listOf("SIP Dial", "3.0.0"), setCalls[1].second)
+        assertEquals("SIP Dial/3.0.0", fakeCore.userAgent)
         assertFalse(calls.any { it.first.contains("Header", ignoreCase = true) })
     }
 }

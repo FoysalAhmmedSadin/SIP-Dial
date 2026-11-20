@@ -1,6 +1,13 @@
 package com.sipdial.app
 
 import android.content.Context
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import com.sipdial.app.data.AccountRepository
 import com.sipdial.app.data.AppDatabase
@@ -9,12 +16,17 @@ import com.sipdial.app.data.models.CallRecord
 import com.sipdial.app.data.models.FavoriteContact
 import com.sipdial.app.data.models.SavedContact
 import com.sipdial.app.data.models.SipAccountData
+import com.sipdial.app.sip.SipRegistrationState
+import com.sipdial.app.ui.screens.BackupRestoreScreen
+import com.sipdial.app.ui.screens.SettingsScreen
+import com.sipdial.app.ui.theme.AppTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -23,8 +35,11 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [36])
 class AccountAndBackupTest {
+
+    @get:Rule
+    val composeRule = createComposeRule()
 
     private lateinit var context: Context
     private lateinit var repo: AccountRepository
@@ -199,7 +214,7 @@ class AccountAndBackupTest {
         )
         val (bytes, exported) = BackupManager.exportToBytes(
             context = context,
-            passphrase = "drive-pass-99".toCharArray(),
+            passphrase = "local-pass-99".toCharArray(),
             options = options
         )
         assertEquals(0, exported.accounts)
@@ -218,7 +233,7 @@ class AccountAndBackupTest {
 
         val restored = BackupManager.restoreFromBytes(
             context = context,
-            passphrase = "drive-pass-99".toCharArray(),
+            passphrase = "local-pass-99".toCharArray(),
             bytes = bytes
         )
         assertEquals(0, restored.accounts)
@@ -250,5 +265,58 @@ class AccountAndBackupTest {
             ByteArrayInputStream("not-a-valid-backup".toByteArray())
         )
         Unit
+    }
+
+    @Test
+    fun settingsAndBackupScreensShowOnlyLocalSipbakBackupWithoutGoogleDrive() {
+        composeRule.setContent {
+            AppTheme {
+                SettingsScreen(
+                    currentAccount = null,
+                    accountsCount = 0,
+                    registrationState = SipRegistrationState.UNREGISTERED,
+                    recordingsCount = 0,
+                    onBack = {},
+                    onOpenAppearance = {},
+                    onOpenSipAccounts = {},
+                    onOpenCalling = {},
+                    onOpenAudioCodecs = {},
+                    onOpenRecordings = {},
+                    onOpenNotifications = {},
+                    onOpenPowerNetwork = {},
+                    onOpenPrivacySecurity = {},
+                    onOpenBackupRestore = {},
+                    onOpenAbout = {}
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("settings_list")
+            .performScrollToNode(hasTestTag("settings_row_backup"))
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Encrypted local .sipbak files").assertIsDisplayed()
+        assertEquals(
+            0,
+            composeRule.onAllNodesWithText("Google Drive", substring = true, ignoreCase = true)
+                .fetchSemanticsNodes().size
+        )
+    }
+
+    @Test
+    fun backupRestoreScreenExposesLocalFileActionsAndNoGoogleDrive() {
+        composeRule.setContent {
+            AppTheme {
+                BackupRestoreScreen(onBack = {})
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Local Encrypted File (.sipbak)").assertIsDisplayed()
+        composeRule.onNodeWithText("Export Local Backup File").assertIsDisplayed()
+        composeRule.onNodeWithText("Restore From Local File").assertIsDisplayed()
+        assertEquals(
+            0,
+            composeRule.onAllNodesWithText("Google Drive", substring = true, ignoreCase = true)
+                .fetchSemanticsNodes().size
+        )
     }
 }

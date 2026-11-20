@@ -13,6 +13,7 @@ import com.sipdial.app.telecom.TelecomHelper
 import com.sipdial.app.ui.theme.AccentColor
 import com.sipdial.app.ui.theme.ThemeMode
 import com.sipdial.app.ui.theme.ThemePreferences
+import com.sipdial.app.util.AppLocalePrefs
 import com.sipdial.app.util.AudioQualityPrefs
 import com.sipdial.app.util.BlockList
 import com.sipdial.app.util.CallingPrefs
@@ -199,6 +200,7 @@ object BackupManager {
                     .put("soundEffects", GeneralPrefs.isSoundEffectsEnabled(context))
                     .put("hapticFeedback", GeneralPrefs.isHapticFeedbackEnabled(context))
                     .put("numberFormatting", GeneralPrefs.isNumberFormattingEnabled(context))
+                    .put("appLocale", AppLocalePrefs.getLocaleTag(context))
                     .put("blockedNumbers", JSONArray().also { arr ->
                         BlockList.numbers.value.sorted().forEach { arr.put(it) }
                     })
@@ -388,6 +390,7 @@ object BackupManager {
                 if (s.has("soundEffects")) GeneralPrefs.setSoundEffectsEnabled(context, s.optBoolean("soundEffects", true))
                 if (s.has("hapticFeedback")) GeneralPrefs.setHapticFeedbackEnabled(context, s.optBoolean("hapticFeedback", true))
                 if (s.has("numberFormatting")) GeneralPrefs.setNumberFormattingEnabled(context, s.optBoolean("numberFormatting", true))
+                if (s.has("appLocale")) AppLocalePrefs.setLocaleTag(context, s.optString("appLocale"))
                 s.optJSONArray("blockedNumbers")?.let { arr ->
                     BlockList.init(context)
                     for (i in 0 until arr.length()) {

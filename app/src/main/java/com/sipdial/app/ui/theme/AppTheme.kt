@@ -3,6 +3,8 @@ package com.sipdial.app.ui.theme
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.res.AssetManager
+import android.content.res.Resources
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -12,13 +14,17 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sipdial.app.util.AppLocalePrefs
 
 private val SipDialShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
@@ -34,6 +40,14 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+private class LocaleOverlayContextWrapper(
+    base: Context,
+    private val localized: Context
+) : ContextWrapper(base) {
+    override fun getResources(): Resources = localized.resources
+    override fun getAssets(): AssetManager = localized.assets
+}
+
 @Composable
 fun AppTheme(
     appearanceOverride: AppearanceState? = null,
@@ -42,10 +56,12 @@ fun AppTheme(
     val context = LocalContext.current
     remember(context.applicationContext) {
         ThemePreferences.init(context)
+        AppLocalePrefs.init(context)
         true
     }
 
     val persisted by ThemePreferences.state.collectAsStateWithLifecycle()
+    val localeTag by AppLocalePrefs.localeTag.collectAsStateWithLifecycle()
     val appearance = appearanceOverride ?: persisted
     val systemIsDark = isSystemInDarkTheme()
 
@@ -64,6 +80,18 @@ fun AppTheme(
             mode = appearance.themeMode,
             systemIsDark = systemIsDark
         )
+    }
+
+    val baseConfiguration = LocalConfiguration.current
+    val localizedConfig = remember(baseConfiguration, localeTag) {
+        AppLocalePrefs.buildLocalizedConfiguration(baseConfiguration, localeTag)
+    }
+    val wrappedContext = remember(context, localeTag, localizedConfig) {
+        val localized = context.createConfigurationContext(localizedConfig)
+        LocaleOverlayContextWrapper(context, localized)
+    }
+    val layoutDirection = remember(localeTag) {
+        if (AppLocalePrefs.isRtl(localeTag)) LayoutDirection.Rtl else LayoutDirection.Ltr
     }
 
     val view = LocalView.current
@@ -87,6 +115,9 @@ fun AppTheme(
     }
 
     CompositionLocalProvider(
+        LocalContext provides wrappedContext,
+        LocalConfiguration provides localizedConfig,
+        LocalLayoutDirection provides layoutDirection,
         LocalSemanticColors provides semanticColors,
         LocalDensity provides scaledDensity
     ) {

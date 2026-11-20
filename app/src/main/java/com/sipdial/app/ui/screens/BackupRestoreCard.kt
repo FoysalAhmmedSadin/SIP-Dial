@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,15 +21,16 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,12 +53,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.sipdial.app.R
 import com.sipdial.app.data.BackupManager
 import com.sipdial.app.data.BackupPassVault
 import com.sipdial.app.ui.components.bringIntoViewOnFocusWithIme
@@ -96,25 +101,43 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
             try {
                 val summary = context.contentResolver.openOutputStream(uri)?.use { out ->
                     BackupManager.export(context, pass.toCharArray(), out, options)
-                } ?: throw IllegalStateException("Could not open backup destination")
+                } ?: throw IllegalStateException(context.getString(R.string.backup_open_dest_error))
 
-                val msg = "Exported ${summary.accounts} accounts, ${summary.calls} calls, " +
-                    "${summary.contacts} saved contacts, and ${summary.favorites} favorites" +
-                    if (summary.settingsIncluded) " (including app settings)." else "."
+                val msg = if (summary.settingsIncluded) {
+                    context.getString(
+                        R.string.backup_export_summary_settings,
+                        summary.accounts,
+                        summary.calls,
+                        summary.contacts,
+                        summary.favorites
+                    )
+                } else {
+                    context.getString(
+                        R.string.backup_export_summary,
+                        summary.accounts,
+                        summary.calls,
+                        summary.contacts,
+                        summary.favorites
+                    )
+                }
 
                 if (enrollBiometrics && activity != null) {
                     BackupPassVault.save(activity, pass) { ok ->
                         vaultSaved = BackupPassVault.hasSaved(context)
-                        resultTitle = "Backup Created"
-                        resultMessage = msg + if (ok) "\n\nPassphrase saved to biometric vault." else ""
+                        resultTitle = context.getString(R.string.backup_created_title)
+                        resultMessage = msg + if (ok) {
+                            "\n\n" + context.getString(R.string.backup_biometric_saved_note)
+                        } else {
+                            ""
+                        }
                     }
                 } else {
-                    resultTitle = "Backup Created"
+                    resultTitle = context.getString(R.string.backup_created_title)
                     resultMessage = msg
                 }
             } catch (e: Exception) {
-                resultTitle = "Backup Failed"
-                resultMessage = e.message ?: "Unable to write encrypted backup file."
+                resultTitle = context.getString(R.string.backup_failed_title)
+                resultMessage = e.message ?: context.getString(R.string.backup_failed_default)
             } finally {
                 busy = false
                 pendingExportUri = null
@@ -129,17 +152,31 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
             try {
                 val summary = context.contentResolver.openInputStream(uri)?.use { input ->
                     BackupManager.restore(context, pass.toCharArray(), input)
-                } ?: throw IllegalStateException("Could not read backup file")
-                resultTitle = "Restore Complete"
-                resultMessage = "Imported ${summary.accounts} accounts, ${summary.calls} calls, " +
-                    "${summary.contacts} saved contacts, and ${summary.favorites} favorites" +
-                    if (summary.settingsIncluded) " (and app settings)." else "."
-            } catch (e: BackupManager.WrongPassphraseException) {
-                resultTitle = "Wrong Passphrase"
-                resultMessage = e.message
+                } ?: throw IllegalStateException(context.getString(R.string.backup_open_src_error))
+                resultTitle = context.getString(R.string.backup_restore_complete_title)
+                resultMessage = if (summary.settingsIncluded) {
+                    context.getString(
+                        R.string.backup_restore_summary_settings,
+                        summary.accounts,
+                        summary.calls,
+                        summary.contacts,
+                        summary.favorites
+                    )
+                } else {
+                    context.getString(
+                        R.string.backup_restore_summary,
+                        summary.accounts,
+                        summary.calls,
+                        summary.contacts,
+                        summary.favorites
+                    )
+                }
+            } catch (_: BackupManager.WrongPassphraseException) {
+                resultTitle = context.getString(R.string.backup_wrong_passphrase_title)
+                resultMessage = context.getString(R.string.backup_wrong_passphrase_msg)
             } catch (e: Exception) {
-                resultTitle = "Restore Failed"
-                resultMessage = e.message ?: "Unable to restore from the selected file."
+                resultTitle = context.getString(R.string.backup_restore_failed_title)
+                resultMessage = e.message ?: context.getString(R.string.backup_restore_failed_default)
             } finally {
                 busy = false
                 pendingRestoreUri = null
@@ -172,22 +209,23 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
         val focusManager = LocalFocusManager.current
         val keyboardController = LocalSoftwareKeyboardController.current
         val confirmFocus = remember { FocusRequester() }
+        val selectedLabel = localizedSummaryLabel(options)
         AlertDialog(
             onDismissRequest = { if (!busy) { pendingExportUri = null; resetPassInputs() } },
-            title = { Text("Encrypt Local Backup") },
+            title = { Text(stringResource(R.string.backup_encrypt_dialog_title)) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Choose a strong passphrase to encrypt your selected data (${options.summaryLabel()}).",
+                        text = stringResource(R.string.backup_encrypt_dialog_desc, selectedLabel),
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it },
-                        label = { Text("Passphrase (min 6 chars)") },
+                        label = { Text(stringResource(R.string.backup_passphrase_min6)) },
                         singleLine = true,
                         visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
@@ -199,7 +237,9 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                             IconButton(onClick = { showPass = !showPass }) {
                                 Icon(
                                     imageVector = if (showPass) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = if (showPass) "Hide passphrase" else "Show passphrase"
+                                    contentDescription = stringResource(
+                                        if (showPass) R.string.backup_hide_passphrase else R.string.backup_show_passphrase
+                                    )
                                 )
                             }
                         },
@@ -211,7 +251,7 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     OutlinedTextField(
                         value = confirmPassphrase,
                         onValueChange = { confirmPassphrase = it },
-                        label = { Text("Confirm Passphrase") },
+                        label = { Text(stringResource(R.string.backup_confirm_passphrase)) },
                         singleLine = true,
                         isError = mismatch,
                         visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
@@ -237,7 +277,10 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                                 checked = saveWithBiometrics,
                                 onCheckedChange = { saveWithBiometrics = it }
                             )
-                            Text("Save passphrase with fingerprint", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                text = stringResource(R.string.backup_save_fingerprint),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                     if (vaultSaved && biometricsAvailable && activity != null) {
@@ -251,7 +294,7 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                         ) {
                             Icon(Icons.Filled.Fingerprint, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Use Saved Biometric Passphrase")
+                            Text(stringResource(R.string.backup_use_biometric))
                         }
                     }
                 }
@@ -261,12 +304,16 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     onClick = { runExport(uri, passphrase, saveWithBiometrics) },
                     enabled = !busy && passphrase.length >= 6 && passphrase == confirmPassphrase
                 ) {
-                    Text(if (busy) "Encrypting…" else "Export")
+                    Text(
+                        stringResource(
+                            if (busy) R.string.backup_encrypting else R.string.backup_export_action
+                        )
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingExportUri = null; resetPassInputs() }, enabled = !busy) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -278,20 +325,20 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
         val keyboardController = LocalSoftwareKeyboardController.current
         AlertDialog(
             onDismissRequest = { if (!busy) { pendingRestoreUri = null; resetPassInputs() } },
-            title = { Text("Decrypt & Restore Backup") },
+            title = { Text(stringResource(R.string.backup_decrypt_dialog_title)) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Enter the passphrase used when creating this .sipbak file.",
+                        text = stringResource(R.string.backup_decrypt_dialog_desc),
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it },
-                        label = { Text("Backup Passphrase") },
+                        label = { Text(stringResource(R.string.backup_passphrase_label)) },
                         singleLine = true,
                         visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
@@ -308,7 +355,9 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                             IconButton(onClick = { showPass = !showPass }) {
                                 Icon(
                                     imageVector = if (showPass) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = if (showPass) "Hide passphrase" else "Show passphrase"
+                                    contentDescription = stringResource(
+                                        if (showPass) R.string.backup_hide_passphrase else R.string.backup_show_passphrase
+                                    )
                                 )
                             }
                         },
@@ -328,7 +377,7 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                         ) {
                             Icon(Icons.Filled.Fingerprint, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Unlock with Fingerprint")
+                            Text(stringResource(R.string.backup_unlock_fingerprint))
                         }
                     }
                 }
@@ -338,12 +387,16 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     onClick = { runRestore(uri, passphrase) },
                     enabled = !busy && passphrase.isNotEmpty()
                 ) {
-                    Text(if (busy) "Restoring…" else "Restore")
+                    Text(
+                        stringResource(
+                            if (busy) R.string.backup_restoring else R.string.backup_restore_action
+                        )
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingRestoreUri = null; resetPassInputs() }, enabled = !busy) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -355,7 +408,9 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
             title = { Text(resultTitle!!) },
             text = { Text(resultMessage.orEmpty()) },
             confirmButton = {
-                TextButton(onClick = { resultTitle = null; resultMessage = null }) { Text("OK") }
+                TextButton(onClick = { resultTitle = null; resultMessage = null }) {
+                    Text(stringResource(R.string.ok))
+                }
             }
         )
     }
@@ -373,12 +428,12 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Local Encrypted File (.sipbak)",
+                text = stringResource(R.string.backup_local_card_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Export or restore offline with PBKDF2-HMAC-SHA256 + AES-256-GCM encryption for call history, SIP accounts, contacts, favorites, and settings.",
+                text = stringResource(R.string.backup_local_card_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -394,7 +449,10 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text("Processing encrypted backup…", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = stringResource(R.string.backup_processing),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
 
@@ -409,9 +467,9 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     .heightIn(min = 48.dp)
                     .testTag("export_backup_btn")
             ) {
-                Icon(Icons.Filled.CloudUpload, contentDescription = null)
+                Icon(Icons.Filled.UploadFile, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Export Local Backup File")
+                Text(stringResource(R.string.backup_export_btn))
             }
 
             OutlinedButton(
@@ -424,10 +482,61 @@ fun BackupRestoreCard(modifier: Modifier = Modifier) {
                     .heightIn(min = 48.dp)
                     .testTag("import_backup_btn")
             ) {
-                Icon(Icons.Filled.CloudDownload, contentDescription = null)
+                Icon(Icons.Filled.FolderOpen, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Restore From Local File")
+                Text(stringResource(R.string.backup_restore_btn))
             }
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BackupCategoryChips(
+    options: BackupManager.BackupOptions,
+    onOptionsChange: (BackupManager.BackupOptions) -> Unit
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        FilterChip(
+            selected = options.includeCalls,
+            onClick = { onOptionsChange(options.copy(includeCalls = !options.includeCalls)) },
+            label = { Text(stringResource(R.string.backup_chip_calls)) },
+            modifier = Modifier.testTag("chip_backup_calls")
+        )
+        FilterChip(
+            selected = options.includeAccounts,
+            onClick = { onOptionsChange(options.copy(includeAccounts = !options.includeAccounts)) },
+            label = { Text(stringResource(R.string.backup_chip_accounts)) },
+            modifier = Modifier.testTag("chip_backup_accounts")
+        )
+        FilterChip(
+            selected = options.includeContactsAndFavorites,
+            onClick = {
+                onOptionsChange(
+                    options.copy(includeContactsAndFavorites = !options.includeContactsAndFavorites)
+                )
+            },
+            label = { Text(stringResource(R.string.backup_chip_contacts)) },
+            modifier = Modifier.testTag("chip_backup_contacts")
+        )
+        FilterChip(
+            selected = options.includeSettings,
+            onClick = { onOptionsChange(options.copy(includeSettings = !options.includeSettings)) },
+            label = { Text(stringResource(R.string.backup_chip_settings)) },
+            modifier = Modifier.testTag("chip_backup_settings")
+        )
+    }
+}
+
+@Composable
+private fun localizedSummaryLabel(options: BackupManager.BackupOptions): String {
+    val parts = mutableListOf<String>()
+    if (options.includeCalls) parts += stringResource(R.string.backup_chip_calls)
+    if (options.includeAccounts) parts += stringResource(R.string.backup_chip_accounts)
+    if (options.includeContactsAndFavorites) parts += stringResource(R.string.backup_chip_contacts)
+    if (options.includeSettings) parts += stringResource(R.string.backup_chip_settings)
+    return if (parts.isEmpty()) stringResource(R.string.backup_chip_empty) else parts.joinToString(", ")
 }

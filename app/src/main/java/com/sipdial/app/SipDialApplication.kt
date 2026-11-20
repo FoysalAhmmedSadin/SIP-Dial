@@ -4,9 +4,11 @@ import android.app.Activity
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import com.sipdial.app.ui.theme.ThemePreferences
+import com.sipdial.app.util.AppLocalePrefs
 import com.sipdial.app.util.AudioQualityPrefs
 import org.linphone.core.Core
 import org.linphone.core.Factory
@@ -15,6 +17,10 @@ import org.linphone.core.LogLevel
 import org.linphone.core.PayloadType
 
 class SipDialApplication : Application() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocalePrefs.wrapContext(newBase))
+    }
 
     companion object {
         lateinit var instance: SipDialApplication
@@ -28,7 +34,7 @@ class SipDialApplication : Application() {
         fun coreOrNull(): Core? = if (coreInitialized) core else null
 
         const val SIP_USER_AGENT_NAME = "SIP Dial"
-        const val SIP_USER_AGENT_VERSION = "2.0.0"
+        const val SIP_USER_AGENT_VERSION = "3.0.0"
 
         @Volatile
         var isMainActivityVisible: Boolean = false
@@ -105,6 +111,7 @@ class SipDialApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        AppLocalePrefs.init(this)
         ThemePreferences.init(this)
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
@@ -139,22 +146,23 @@ class SipDialApplication : Application() {
         } catch (_: Exception) {
         }
 
+        val localized = AppLocalePrefs.localizedContext(this)
         val serviceChannel = NotificationChannel(
             CHANNEL_SERVICE_ID,
-            getString(R.string.notification_channel_name),
+            localized.getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_MIN
         ).apply {
-            description = getString(R.string.notification_channel_desc)
+            description = localized.getString(R.string.notification_channel_desc)
             setShowBadge(false)
             setSound(null, null)
         }
 
         val callChannel = NotificationChannel(
             CHANNEL_CALL_ID,
-            "Incoming Calls",
+            localized.getString(R.string.notification_call_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Incoming SIP call notifications"
+            description = localized.getString(R.string.notification_call_channel_desc)
             setShowBadge(true)
             setSound(null, null)
             enableVibration(false)
