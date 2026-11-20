@@ -35,3 +35,23 @@ gradle :app:testDebugUnitTest
 - **Developer**: Foysal Ahmmed Sadin (<foysal24x7@gmail.com>)
 - **License**: GNU General Public License v3.0 (`LICENSE`)
 - **Attribution**: Powered by the Linphone Android SDK by Belledonne Communications.
+
+## Huawei AppGallery release
+
+The Android application uses package ID `com.sipdial.app`, minimum Android API 24, target API 36, and release version `3.0.0` (version code `3`).
+
+### CI release signing
+
+The GitHub Actions workflow builds and tests a debug APK on every run. To enable signed release APK and AAB generation, add these repository Actions secrets:
+
+- `RELEASE_KEYSTORE_BASE64`: Base64-encoded upload keystore file.
+- `RELEASE_STORE_PASSWORD`: Keystore password.
+- `RELEASE_KEY_PASSWORD`: Key password.
+
+The release signing configuration currently expects the key alias `upload`. Keep the same signing key for every future update of this application. Never commit the keystore or passwords to the repository.
+
+A signed APK and AAB are generated only when all signing secrets are configured. A version tag such as `v3.0.0` also publishes those signed outputs as a GitHub Release.
+
+### Huawei device compatibility note
+
+The app includes Google Play Services authentication dependencies and documents Google Drive backup. Those integrations must be tested or replaced with Huawei-compatible alternatives before claiming full HMS-only compatibility. Core SIP registration and calling should be validated on a Huawei device without Google Mobile Services. This release workflow does not itself replace Google APIs or certify AppGallery compliance.
