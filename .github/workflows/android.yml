@@ -49,11 +49,22 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Run unit tests
-        run: gradle --no-daemon :app:testDebugUnitTest
+      - name: Run unit tests (retry transient repository errors)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if gradle --no-daemon --no-configuration-cache :app:testDebugUnitTest; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "Gradle test attempt $attempt failed; retrying after $((attempt * 20)) seconds..."
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
 
       - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon --no-configuration-cache :app:assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -110,7 +121,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          gradle --no-daemon :app:assembleRelease :app:bundleRelease
+          gradle --no-daemon --no-configuration-cache :app:assembleRelease :app:bundleRelease
 
       - name: Upload signed release files
         if: steps.signing.outputs.available == 'true'
