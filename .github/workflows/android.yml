@@ -82,19 +82,24 @@ jobs:
             exit 1
           fi
 
-          APK_CERT_INFO="$("${APKSIGNER}" verify --verbose --print-certs "${APK_PATH}")"
-          echo "${APK_CERT_INFO}"
-          if echo "${APK_CERT_INFO}" | grep -qi "Android Debug"; then
+          "${APKSIGNER}" verify --verbose --print-certs "${APK_PATH}" > "${RUNNER_TEMP}/apk-cert-info.txt" 2>&1
+          cat "${RUNNER_TEMP}/apk-cert-info.txt"
+          if grep -qi "Android Debug" "${RUNNER_TEMP}/apk-cert-info.txt"; then
             echo "ERROR: Release APK is signed with Android Debug certificate!" >&2
             exit 1
           fi
 
-          AAB_VERIFY_OUTPUT="$(jarsigner -verify -verbose -certs "${AAB_PATH}")"
-          if ! echo "${AAB_VERIFY_OUTPUT}" | grep -qi "jar verified."; then
+          if ! jarsigner -verify -verbose -certs "${AAB_PATH}" > "${RUNNER_TEMP}/aab-verify.txt" 2>&1; then
+            cat "${RUNNER_TEMP}/aab-verify.txt"
+            echo "ERROR: jarsigner could not verify the Release AAB." >&2
+            exit 1
+          fi
+          cat "${RUNNER_TEMP}/aab-verify.txt"
+          if ! grep -qi "jar verified\." "${RUNNER_TEMP}/aab-verify.txt"; then
             echo "ERROR: Release AAB signature verification failed!" >&2
             exit 1
           fi
-          if echo "${AAB_VERIFY_OUTPUT}" | grep -qi "Android Debug"; then
+          if grep -qi "Android Debug" "${RUNNER_TEMP}/aab-verify.txt"; then
             echo "ERROR: Release AAB is signed with Android Debug certificate!" >&2
             exit 1
           fi
